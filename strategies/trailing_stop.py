@@ -1,0 +1,103 @@
+"""
+Trailing stop strategy.
+Rules are deterministic Python — LLM never touches the math.
+
+Entry: manual (you tell it what to buy via main.py or CLI).
+Stop: sell if price drops TRAILING_STOP_DROP_PCT below entry.
+Trail: when price rises TRAILING_STOP_RAISE_TRIGGER above entry,
+       raise the floor to current_price * (1 - TRAILING_STOP_FLOOR_OFFSET).
+       Floor only ever moves up.
+"""
+
+import json
+import os
+from datetime import datetime
+import alpaca_client
+import config
+
+STATE_FILE = os.path.join(os.path.dirname(__file__), "..", "paper_results", "trailing_state.json")
+
+
+def load_state():
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE) as f:
+            return json.load(f)
+    return {}
+
+
+def save_state(state):
+    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
+
+
+def add_position(symbol, entry_price, qty):
+    """Register a new position to be managed by trailing stop."""
+    state = load_state()
+    floor = entry_price * (1 - config.TRAILING_STOP_DROP_PCT)
+    state[symbol] = {
+        "entry_price": entry_price,
+        "qty": qty,
+        "floor": floor,
+        "peak": entry_price,
+        "entered_at": datetime.now().isoformat(),
+    }
+    save_state(state)
+    print(f"[trailing] {symbol} registered. Entry ${entry_price:.2f}, floor ${floor:.2f}")
+
+
+def check_and_manage():
+    """Run on schedule. Check all tracked positions, update floors, fire stops."""
+    state = load_state()
+    if not state:
+        return
+
+    for symbol, data in list(state.items()):
+        price = alpaca_client.get_current_price(symbol)
+        if price is None:
+            print(f"[trailing] {symbol}: could not fetch price, skipping")
+            continue
+
+        floor = data["floor"]
+        peak = data["peak"]
+        entry = data["entry_price"]
+        qty = data["qty"]
+
+        # Update peak
+        if price > peak:
+            data["peak"] = price
+            # Raise floor if we've gained enough
+            gain_pct = (price - entry) / entry
+            if gain_pct >= config.TRAILING_STOP_RAISE_TRIGGER:
+                new_floor = price * (1 - config.TRAILING_STOP_FLOOR_OFFSET)
+                if new_floor > floor:
+                    data["floor"] = new_floor
+                    print(f"[trailing] {symbol}: floor raised to ${new_floor:.2f} (price ${price:.2f})")
+
+        # Check stop
+        if price <= data["floor"]:
+            print(f"[trailing] {symbol}: STOP triggered at ${price:.2f} (floor ${data['floor']:.2f})")
+            try:
+                order = alpaca_client.place_market_order(symbol, qty, "sell")
+                print(f"[trailing] {symbol}: sell order placed — {order.id}")
+                del state[symbol]
+            except Exception as e:
+                print(f"[trailing] {symbol}: sell failed — {e}")
+        else:
+            print(
+                f"[trailing] {symbol}: ${price:.2f} | floor ${data['floor']:.2f} | "
+                f"peak ${data['peak']:.2f} | P&L {((price - entry)/entry)*100:.1f}%"
+            )
+
+    save_state(state)
+
+
+def enter_position(symbol, qty):
+    """Buy and register for trailing stop management."""
+    price = alpaca_client.get_current_price(symbol)
+    if price is None:
+        raise RuntimeError(f"Cannot fetch price for {symbol}")
+    order = alpaca_client.place_market_order(symbol, qty, "buy")
+    print(f"[trailing] {symbol}: buy order placed — {order.id}")
+    add_position(symbol, price, qty)
+    return order
