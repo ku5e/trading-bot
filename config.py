@@ -27,7 +27,7 @@ TRAILING_STOP_FLOOR_OFFSET = 0.05   # new floor = current price - 5%
 # Politician copy settings
 CAPITOL_TRADES_URL = "https://capitoltrades.com/trades"
 COPY_TRADE_DELAY_DAYS = 3        # wait 3 days after disclosure before entering
-COPY_MAX_POSITION_USD = 150      # smaller cap for copy trades
+COPY_MAX_POSITION_USD = 5000     # max per copy trade position
 
 # Scheduler
 MARKET_OPEN = "09:30"
