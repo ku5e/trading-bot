@@ -71,6 +71,19 @@ def place_market_order(symbol, qty, side):
     return order
 
 
+def get_fill_price(order_id, timeout=30):
+    """Poll until order is filled and return the average fill price."""
+    import time
+    api = get_client()
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        order = api.get_order(order_id)
+        if order.status == "filled" and order.filled_avg_price:
+            return float(order.filled_avg_price)
+        time.sleep(1)
+    raise RuntimeError(f"Order {order_id} not filled within {timeout}s")
+
+
 def get_historical_bars(symbol, days=365, timeframe=TimeFrame.Day):
     """Pull historical OHLCV for backtesting."""
     api = get_client()

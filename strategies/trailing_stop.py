@@ -102,10 +102,9 @@ def check_and_manage():
 
 def enter_position(symbol, qty):
     """Buy and register for trailing stop management."""
-    price = alpaca_client.get_current_price(symbol)
-    if price is None:
-        raise RuntimeError(f"Cannot fetch price for {symbol}")
     order = alpaca_client.place_market_order(symbol, qty, "buy")
     print(f"[trailing] {symbol}: buy order placed — {order.id}")
-    add_position(symbol, price, qty)
+    fill_price = alpaca_client.get_fill_price(order.id)
+    print(f"[trailing] {symbol}: filled at ${fill_price:.2f}")
+    add_position(symbol, fill_price, qty)
     return order
