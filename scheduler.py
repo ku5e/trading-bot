@@ -10,13 +10,14 @@ from apscheduler.triggers.cron import CronTrigger
 import pytz
 from datetime import datetime
 import logging
-import os
-import sys
-
 import json
 import os
+import sys
+import smtplib
+from email.mime.text import MIMEText
 
 import alpaca_client
+import config
 import ollama_client
 from strategies import trailing_stop, politician_copy
 
@@ -35,6 +36,23 @@ logging.basicConfig(
     ],
 )
 log = logging.getLogger(__name__)
+
+
+def send_email(subject, body):
+    if not config.EMAIL_SMTP or not config.EMAIL_TO:
+        return
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = config.EMAIL_USER
+    msg["To"] = config.EMAIL_TO
+    try:
+        with smtplib.SMTP(config.EMAIL_SMTP, config.EMAIL_PORT) as server:
+            server.starttls()
+            server.login(config.EMAIL_USER, config.EMAIL_PASS)
+            server.send_message(msg)
+        log.info(f"[email] sent: {subject}")
+    except Exception as e:
+        log.error(f"[email] failed: {e}")
 
 
 def is_market_hours():
@@ -90,6 +108,7 @@ def run_daily_summary():
         log.info(f"[daily summary]\n{summary}")
         with open("paper_results/daily_summary.txt", "a") as f:
             f.write(f"\n--- {datetime.now(ET).date()} ---\n{summary}\n")
+        send_email(f"Trading Bot — {datetime.now(ET).date()}", summary)
     except Exception as e:
         log.error(f"[scheduler] daily summary failed: {e}")
 

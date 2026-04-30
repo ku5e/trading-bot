@@ -29,6 +29,13 @@ CAPITOL_TRADES_URL = "https://capitoltrades.com/trades"
 COPY_TRADE_DELAY_DAYS = 0        # buy immediately on disclosure
 COPY_MAX_POSITION_USD = 5000     # max per copy trade position
 
+# Email (Brevo SMTP)
+EMAIL_SMTP = os.getenv("EMAIL_SMTP", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
+EMAIL_USER = os.getenv("EMAIL_USER", "")
+EMAIL_PASS = os.getenv("EMAIL_PASS", "")
+EMAIL_TO = os.getenv("EMAIL_TO", "")
+
 # Scheduler
 MARKET_OPEN = "09:30"
 MARKET_CLOSE = "16:00"
