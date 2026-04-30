@@ -9,12 +9,27 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
 from datetime import datetime
+import logging
+import os
+import sys
 
 import alpaca_client
 import ollama_client
 from strategies import trailing_stop, politician_copy
 
 ET = pytz.timezone("US/Eastern")
+
+os.makedirs("paper_results", exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[
+        logging.FileHandler("paper_results/scheduler.log"),
+        logging.StreamHandler(sys.stdout),
+    ],
+)
+log = logging.getLogger(__name__)
 
 
 def is_market_hours():
@@ -29,14 +44,14 @@ def is_market_hours():
 def run_trailing_stop():
     if not is_market_hours():
         return
-    print(f"[scheduler] trailing stop check — {datetime.now(ET).strftime('%H:%M:%S ET')}")
+    log.info(f"[scheduler] trailing stop check — {datetime.now(ET).strftime('%H:%M:%S ET')}")
     trailing_stop.check_and_manage()
 
 
 def run_politician_copy():
     if not is_market_hours():
         return
-    print(f"[scheduler] politician copy check — {datetime.now(ET).strftime('%H:%M:%S ET')}")
+    log.info(f"[scheduler] politician copy check — {datetime.now(ET).strftime('%H:%M:%S ET')}")
     politician_copy.check_and_copy()
 
 
@@ -47,11 +62,11 @@ def run_daily_summary():
         positions = alpaca_client.get_all_positions()
         account = alpaca_client.get_account()
         summary = ollama_client.summarize_positions(positions, account)
-        print(f"\n[daily summary]\n{summary}\n")
+        log.info(f"[daily summary]\n{summary}")
         with open("paper_results/daily_summary.txt", "a") as f:
             f.write(f"\n--- {datetime.now(ET).date()} ---\n{summary}\n")
     except Exception as e:
-        print(f"[scheduler] daily summary failed: {e}")
+        log.error(f"[scheduler] daily summary failed: {e}")
 
 
 def start():
@@ -75,8 +90,8 @@ def start():
         CronTrigger(day_of_week="mon-fri", hour=15, minute=55, timezone=ET),
     )
 
-    print("[scheduler] started. Running trailing stop + politician copy.")
-    print("Press Ctrl+C to stop.")
+    log.info("[scheduler] started. Running trailing stop + politician copy.")
+    log.info("Press Ctrl+C to stop.")
     sched.start()
 
 
