@@ -39,8 +39,8 @@ def get_all_positions():
 
 def get_current_price(symbol):
     api = get_client()
-    df = api.get_bars(symbol, TimeFrame.Minute, limit=1).df
-    return float(df["close"].iloc[-1]) if not df.empty else None
+    trade = api.get_latest_trade(symbol)
+    return float(trade.price)
 
 
 def place_market_order(symbol, qty, side):
