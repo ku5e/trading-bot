@@ -7,6 +7,14 @@ Stop: sell if price drops TRAILING_STOP_DROP_PCT below entry.
 Trail: when price rises TRAILING_STOP_RAISE_TRIGGER above entry,
        raise the floor to current_price * (1 - TRAILING_STOP_FLOOR_OFFSET).
        Floor only ever moves up.
+
+PRODUCTION NOTE:
+Current stop logic is software-only — fires on the next 5-minute check, not instantly.
+A gap-down at open or a news spike can blow through the floor before the bot checks.
+For live money: on enter_position, submit a stop order to Alpaca at the initial floor.
+When the floor ratchets up, cancel the existing stop order and submit a new one at the
+new floor. Alpaca's stop sits on their servers and fires immediately regardless of
+whether this bot is running.
 """
 
 import json
