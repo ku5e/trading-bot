@@ -72,6 +72,14 @@ def cmd_pending():
         print(f"{o['symbol']} x{o['qty']} — queued {o['queued_at']}")
 
 
+def cmd_price(symbol):
+    price = alpaca_client.get_current_price(symbol.upper())
+    if price is None:
+        print(f"Could not fetch price for {symbol.upper()}")
+    else:
+        print(f"{symbol.upper()}: ${price:.2f}")
+
+
 def cmd_backtest(symbol, days):
     run_backtest(symbol.upper(), days, "trailing_stop")
 
@@ -82,6 +90,9 @@ def main():
 
     sub.add_parser("status", help="Show account equity and cash")
     sub.add_parser("positions", help="Show all open positions")
+
+    price_p = sub.add_parser("price", help="Get current price for a symbol")
+    price_p.add_argument("--symbol", required=True)
 
     enter_p = sub.add_parser("enter", help="Buy now and register for trailing stop")
     enter_p.add_argument("--symbol", required=True)
@@ -99,7 +110,9 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == "status":
+    if args.command == "price":
+        cmd_price(args.symbol)
+    elif args.command == "status":
         cmd_status()
     elif args.command == "positions":
         cmd_positions()
