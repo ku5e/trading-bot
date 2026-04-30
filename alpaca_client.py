@@ -39,8 +39,7 @@ def get_all_positions():
 
 def get_current_price(symbol):
     api = get_client()
-    barset = api.get_bars(symbol, TimeFrame.Minute, limit=1)
-    bars = barset[symbol]
+    bars = api.get_bars(symbol, TimeFrame.Minute, limit=1)
     return float(bars[-1].c) if bars else None
 
 

@@ -113,6 +113,22 @@ def run_daily_summary():
         log.error(f"[scheduler] daily summary failed: {e}")
 
 
+def run_catchup():
+    """Run jobs that fire once at open if the scheduler started after their trigger time."""
+    now = datetime.now(ET)
+    if not is_market_hours():
+        return
+    from datetime import time
+    past_931 = now.time() >= time(9, 31)
+    past_935 = now.time() >= time(9, 35)
+    if past_931:
+        log.info("[scheduler] late start — running pending orders now")
+        run_pending_orders()
+    if past_935:
+        log.info("[scheduler] late start — running politician copy now")
+        run_politician_copy()
+
+
 def start():
     sched = BlockingScheduler(timezone=ET)
 
@@ -139,6 +155,8 @@ def start():
         run_daily_summary,
         CronTrigger(day_of_week="mon-fri", hour=15, minute=55, timezone=ET),
     )
+
+    run_catchup()
 
     log.info("[scheduler] started. Running trailing stop + politician copy.")
     log.info("Press Ctrl+C to stop.")
