@@ -13,9 +13,14 @@ import logging
 import os
 import sys
 
+import json
+import os
+
 import alpaca_client
 import ollama_client
 from strategies import trailing_stop, politician_copy
+
+PENDING_FILE = os.path.join(os.path.dirname(__file__), "paper_results", "pending_orders.json")
 
 ET = pytz.timezone("US/Eastern")
 
@@ -39,6 +44,26 @@ def is_market_hours():
     t = now.time()
     from datetime import time
     return time(9, 30) <= t <= time(16, 0)
+
+
+def run_pending_orders():
+    if not os.path.exists(PENDING_FILE):
+        return
+    with open(PENDING_FILE) as f:
+        orders = json.load(f)
+    if not orders:
+        return
+    remaining = []
+    for o in orders:
+        symbol, qty = o["symbol"], o["qty"]
+        try:
+            trailing_stop.enter_position(symbol, qty)
+            log.info(f"[pending] {symbol} x{qty} executed at open")
+        except Exception as e:
+            log.error(f"[pending] {symbol} x{qty} failed: {e}")
+            remaining.append(o)
+    with open(PENDING_FILE, "w") as f:
+        json.dump(remaining, f, indent=2)
 
 
 def run_trailing_stop():
@@ -71,6 +96,12 @@ def run_daily_summary():
 
 def start():
     sched = BlockingScheduler(timezone=ET)
+
+    # Pending orders: execute at 9:31 AM ET (1 min after open)
+    sched.add_job(
+        run_pending_orders,
+        CronTrigger(day_of_week="mon-fri", hour=9, minute=31, timezone=ET),
+    )
 
     # Trailing stop: every 5 min, market hours
     sched.add_job(
