@@ -43,12 +43,13 @@ def send_email(subject, body):
         return
     msg = MIMEText(body)
     msg["Subject"] = subject
-    msg["From"] = config.EMAIL_USER
+    msg["From"] = config.EMAIL_USER or f"trading-bot@{config.EMAIL_SMTP}"
     msg["To"] = config.EMAIL_TO
     try:
         with smtplib.SMTP(config.EMAIL_SMTP, config.EMAIL_PORT) as server:
-            server.starttls()
-            server.login(config.EMAIL_USER, config.EMAIL_PASS)
+            if config.EMAIL_PASS:
+                server.starttls()
+                server.login(config.EMAIL_USER, config.EMAIL_PASS)
             server.send_message(msg)
         log.info(f"[email] sent: {subject}")
     except Exception as e:
