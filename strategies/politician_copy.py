@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 import alpaca_client
 import config
 
-TARGET_POLITICIAN = "michael-mccaul"  # Capitol Trades URL slug — change to follow someone else
+TARGET_POLITICIAN = "gil-cisneros"  # Capitol Trades URL slug — change to follow someone else
 TRACKED_FILE = "paper_results/politician_tracked.csv"
 
 
