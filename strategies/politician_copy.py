@@ -11,6 +11,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import alpaca_client
 import config
+import notifier
 
 TARGET_POLITICIAN = "gil-cisneros"  # Capitol Trades URL slug — change to follow someone else
 TRACKED_FILE = "paper_results/politician_tracked.csv"
@@ -104,6 +105,14 @@ def check_and_copy():
             }])
             tracked = pd.concat([tracked, new_row], ignore_index=True)
             entered.append(trade["symbol"])
+            notifier.action(
+                f"BUY {trade['symbol']} — politician copy ({TARGET_POLITICIAN})",
+                f"Symbol: {trade['symbol']}\nQty: {qty}\nPrice: ~${price:.2f}\n"
+                f"Position value: ~${price * qty:,.2f}\n"
+                f"Trade date: {trade['trade_date']}\nDisclosed: {trade['disclosed_date']}\n"
+                f"Size bucket: {trade['size']}\nCopying: {TARGET_POLITICIAN}\n"
+                f"Order ID: {order.id}",
+            )
         except Exception as e:
             print(f"[politician] {trade['symbol']}: order failed — {e}")
 

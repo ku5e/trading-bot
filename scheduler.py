@@ -13,12 +13,11 @@ import logging
 import json
 import os
 import sys
-import smtplib
-from email.mime.text import MIMEText
 
 import alpaca_client
 import config
 import ollama_client
+import notifier
 from strategies import trailing_stop, politician_copy
 
 PENDING_FILE = os.path.join(os.path.dirname(__file__), "paper_results", "pending_orders.json")
@@ -39,21 +38,7 @@ log = logging.getLogger(__name__)
 
 
 def send_email(subject, body):
-    if not config.EMAIL_SMTP or not config.EMAIL_TO:
-        return
-    msg = MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = config.EMAIL_FROM or config.EMAIL_USER or "trading-bot@ku5e.com"
-    msg["To"] = config.EMAIL_TO
-    try:
-        with smtplib.SMTP(config.EMAIL_SMTP, config.EMAIL_PORT) as server:
-            if config.EMAIL_PASS:
-                server.starttls()
-                server.login(config.EMAIL_USER, config.EMAIL_PASS)
-            server.send_message(msg)
-        log.info(f"[email] sent: {subject}")
-    except Exception as e:
-        log.error(f"[email] failed: {e}")
+    notifier.send_email(subject, body)
 
 
 def is_market_hours():
@@ -99,6 +84,42 @@ def run_politician_copy():
     politician_copy.check_and_copy()
 
 
+def run_morning_brief():
+    try:
+        positions = alpaca_client.get_all_positions()
+        account = alpaca_client.get_account()
+        pending = []
+        if os.path.exists(PENDING_FILE):
+            with open(PENDING_FILE) as f:
+                pending = json.load(f)
+
+        lines = [f"Trading Bot — Morning Brief {datetime.now(ET).strftime('%Y-%m-%d')}"]
+        lines.append(f"\nAccount: ${float(account.equity):,.2f} equity | ${float(account.buying_power):,.2f} buying power")
+
+        if positions:
+            lines.append(f"\nOpen Positions ({len(positions)}):")
+            for p in positions:
+                pnl = float(p.unrealized_pl)
+                lines.append(f"  {p.symbol}: {p.qty} shares @ ${float(p.avg_entry_price):.2f} | P&L ${pnl:+.2f}")
+        else:
+            lines.append("\nNo open positions.")
+
+        if pending:
+            lines.append(f"\nPending Orders ({len(pending)}) — execute at 9:31:")
+            for o in pending:
+                lines.append(f"  {o['symbol']} x{o['qty']}")
+        else:
+            lines.append("\nNo pending orders.")
+
+        lines.append(f"\nCopying: {politician_copy.TARGET_POLITICIAN}")
+
+        body = "\n".join(lines)
+        log.info(f"[morning brief]\n{body}")
+        send_email(f"Trading Bot — Morning Brief {datetime.now(ET).date()}", body)
+    except Exception as e:
+        log.error(f"[scheduler] morning brief failed: {e}")
+
+
 def run_daily_summary():
     if not is_market_hours():
         return
@@ -109,7 +130,7 @@ def run_daily_summary():
         log.info(f"[daily summary]\n{summary}")
         with open("paper_results/daily_summary.txt", "a") as f:
             f.write(f"\n--- {datetime.now(ET).date()} ---\n{summary}\n")
-        send_email(f"Trading Bot — {datetime.now(ET).date()}", summary)
+        send_email(f"Trading Bot — EOD Summary {datetime.now(ET).date()}", summary)
     except Exception as e:
         log.error(f"[scheduler] daily summary failed: {e}")
 
@@ -132,6 +153,12 @@ def run_catchup():
 
 def start():
     sched = BlockingScheduler(timezone=ET)
+
+    # Morning brief: 9:30 AM ET (market open)
+    sched.add_job(
+        run_morning_brief,
+        CronTrigger(day_of_week="mon-fri", hour=9, minute=30, timezone=ET),
+    )
 
     # Pending orders: execute at 9:31 AM ET (1 min after open)
     sched.add_job(

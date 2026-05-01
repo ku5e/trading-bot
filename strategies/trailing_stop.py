@@ -22,6 +22,7 @@ import os
 from datetime import datetime
 import alpaca_client
 import config
+import notifier
 
 STATE_FILE = os.path.join(os.path.dirname(__file__), "..", "paper_results", "trailing_state.json")
 
@@ -88,6 +89,13 @@ def check_and_manage():
             try:
                 order = alpaca_client.place_market_order(symbol, qty, "sell")
                 print(f"[trailing] {symbol}: sell order placed — {order.id}")
+                pnl = (price - data["entry_price"]) * qty
+                notifier.action(
+                    f"SELL {symbol} — trailing stop triggered",
+                    f"Symbol: {symbol}\nQty: {qty}\nEntry: ${data['entry_price']:.2f}\n"
+                    f"Exit: ${price:.2f}\nFloor: ${data['floor']:.2f}\n"
+                    f"P&L: ${pnl:+.2f}\nOrder ID: {order.id}\nStrategy: trailing stop",
+                )
                 del state[symbol]
             except Exception as e:
                 print(f"[trailing] {symbol}: sell failed — {e}")
@@ -107,4 +115,11 @@ def enter_position(symbol, qty):
     fill_price = alpaca_client.get_fill_price(order.id)
     print(f"[trailing] {symbol}: filled at ${fill_price:.2f}")
     add_position(symbol, fill_price, qty)
+    notifier.action(
+        f"BUY {symbol} — position entered",
+        f"Symbol: {symbol}\nQty: {qty}\nFill price: ${fill_price:.2f}\n"
+        f"Position value: ${fill_price * qty:,.2f}\n"
+        f"Initial floor: ${fill_price * (1 - config.TRAILING_STOP_DROP_PCT):.2f}\n"
+        f"Order ID: {order.id}\nStrategy: trailing stop",
+    )
     return order
