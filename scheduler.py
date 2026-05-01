@@ -43,7 +43,7 @@ def send_email(subject, body):
         return
     msg = MIMEText(body)
     msg["Subject"] = subject
-    msg["From"] = config.EMAIL_USER or "trading-bot@ku5e.com"
+    msg["From"] = config.EMAIL_FROM or config.EMAIL_USER or "trading-bot@ku5e.com"
     msg["To"] = config.EMAIL_TO
     try:
         with smtplib.SMTP(config.EMAIL_SMTP, config.EMAIL_PORT) as server:
