@@ -82,7 +82,8 @@ def cmd_pending():
         print("No pending orders.")
         return
     for o in orders:
-        print(f"{o['symbol']} x{o['qty']} — queued {o['queued_at']}")
+        strategy = o.get("strategy", "trailing_stop")
+        print(f"{o['symbol']} x{o['qty']} ({strategy}) — queued {o['queued_at']}")
 
 
 def cmd_cancel(symbol):
