@@ -116,7 +116,7 @@ def run():
 
     while True:
         draw_menu()
-        choice = console.input("[txt]C:\\>[/txt] ").strip()
+        choice = console.input("[txt]Trader-Bot Control:>[/txt] ").strip()
 
         clear()
         header()
