@@ -29,14 +29,14 @@ import alpaca_client
 import config
 import notifier
 
-# ── State file ────────────────────────────────────────────────────────────────
-# Each strategy uses the shared trailing_state.json. Positions are tagged with
-# the strategy name so each strategy only touches its own positions.
-# You can use a separate state file if your strategy needs different fields.
-
-STATE_FILE = os.path.join(os.path.dirname(__file__), "..", "paper_results", "trailing_state.json")
-
 STRATEGY_NAME = "example_strategy"  # must match the key in REGISTRY
+
+# ── State file ────────────────────────────────────────────────────────────────
+# Each strategy uses its own state file: paper_results/{strategy_name}_state.json
+# No cross-contamination between strategies. Change STRATEGY_NAME and the file
+# path updates automatically.
+
+STATE_FILE = os.path.join(os.path.dirname(__file__), "..", "paper_results", f"{STRATEGY_NAME}_state.json")
 
 
 # ── State helpers ─────────────────────────────────────────────────────────────

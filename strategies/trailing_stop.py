@@ -24,7 +24,7 @@ import alpaca_client
 import config
 import notifier
 
-STATE_FILE = os.path.join(os.path.dirname(__file__), "..", "paper_results", "trailing_state.json")
+STATE_FILE = os.path.join(os.path.dirname(__file__), "..", "paper_results", "trailing_stop_state.json")
 
 
 def load_state():
