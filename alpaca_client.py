@@ -95,5 +95,6 @@ def get_historical_bars(symbol, days=365, timeframe=TimeFrame.Day):
         start=start.strftime("%Y-%m-%d"),
         end=end.strftime("%Y-%m-%d"),
         adjustment="raw",
+        feed="iex",
     ).df
     return bars
