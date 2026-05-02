@@ -15,7 +15,7 @@ import json
 import os
 from datetime import datetime
 import alpaca_client
-from strategies import trailing_stop
+from strategies import trailing_stop, REGISTRY, get_strategy
 from backtester.backtest import run as run_backtest
 
 PENDING_FILE = os.path.join(os.path.dirname(__file__), "paper_results", "pending_orders.json")
@@ -42,21 +42,34 @@ def cmd_positions():
         )
 
 
-def cmd_enter(symbol, qty):
-    order = trailing_stop.enter_position(symbol.upper(), qty)
+def cmd_strategies():
+    print("Registered strategies:")
+    for name in REGISTRY:
+        print(f"  {name}")
+
+
+def cmd_enter(symbol, qty, strategy="trailing_stop"):
+    strat = get_strategy(strategy)
+    order = strat.enter_position(symbol.upper(), qty, strategy=strategy)
     print(f"Order placed: {order.id}")
 
 
-def cmd_queue(symbol, qty):
+def cmd_queue(symbol, qty, strategy="trailing_stop"):
+    get_strategy(strategy)  # validate before queuing
     os.makedirs(os.path.dirname(PENDING_FILE), exist_ok=True)
     orders = []
     if os.path.exists(PENDING_FILE):
         with open(PENDING_FILE) as f:
             orders = json.load(f)
-    orders.append({"symbol": symbol.upper(), "qty": qty, "queued_at": datetime.now().isoformat()})
+    orders.append({
+        "symbol": symbol.upper(),
+        "qty": qty,
+        "strategy": strategy,
+        "queued_at": datetime.now().isoformat(),
+    })
     with open(PENDING_FILE, "w") as f:
         json.dump(orders, f, indent=2)
-    print(f"Queued: {symbol.upper()} x{qty} — executes at tomorrow's open (9:31 AM ET)")
+    print(f"Queued: {symbol.upper()} x{qty} ({strategy}) — executes at tomorrow's open (9:31 AM ET)")
 
 
 def cmd_pending():
@@ -94,12 +107,14 @@ def main():
             "              python main.py status\n\n"
             "  positions   Show all open positions with P&L\n"
             "              python main.py positions\n\n"
+            "  strategies  List all registered strategies\n"
+            "              python main.py strategies\n\n"
             "  price       Get current price for a symbol\n"
             "              python main.py price --symbol XNDU\n\n"
-            "  enter       Buy immediately and register for trailing stop\n"
-            "              python main.py enter --symbol XNDU --qty 100\n\n"
+            "  enter       Buy immediately and register with a strategy\n"
+            "              python main.py enter --symbol XNDU --qty 100 --strategy trailing_stop\n\n"
             "  queue       Queue a buy for next market open (9:31 AM ET)\n"
-            "              python main.py queue --symbol XNDU --qty 100\n\n"
+            "              python main.py queue --symbol XNDU --qty 100 --strategy trailing_stop\n\n"
             "  pending     Show queued orders not yet executed\n"
             "              python main.py pending\n\n"
             "  backtest    Run trailing stop backtest on historical data\n"
@@ -114,13 +129,17 @@ def main():
     price_p = sub.add_parser("price", help="Get current price  |  python main.py price --symbol XNDU")
     price_p.add_argument("--symbol", required=True)
 
-    enter_p = sub.add_parser("enter", help="Buy now + trailing stop  |  python main.py enter --symbol XNDU --qty 100")
+    sub.add_parser("strategies", help="List registered strategies  |  python main.py strategies")
+
+    enter_p = sub.add_parser("enter", help="Buy now + strategy  |  python main.py enter --symbol XNDU --qty 100 --strategy trailing_stop")
     enter_p.add_argument("--symbol", required=True)
     enter_p.add_argument("--qty", type=int, required=True)
+    enter_p.add_argument("--strategy", default="trailing_stop")
 
-    queue_p = sub.add_parser("queue", help="Queue buy for 9:31 AM open  |  python main.py queue --symbol XNDU --qty 100")
+    queue_p = sub.add_parser("queue", help="Queue buy for 9:31 AM open  |  python main.py queue --symbol XNDU --qty 100 --strategy trailing_stop")
     queue_p.add_argument("--symbol", required=True)
     queue_p.add_argument("--qty", type=int, required=True)
+    queue_p.add_argument("--strategy", default="trailing_stop")
 
     sub.add_parser("pending", help="Show queued orders  |  python main.py pending")
 
@@ -136,10 +155,12 @@ def main():
         cmd_status()
     elif args.command == "positions":
         cmd_positions()
+    elif args.command == "strategies":
+        cmd_strategies()
     elif args.command == "enter":
-        cmd_enter(args.symbol, args.qty)
+        cmd_enter(args.symbol, args.qty, args.strategy)
     elif args.command == "queue":
-        cmd_queue(args.symbol, args.qty)
+        cmd_queue(args.symbol, args.qty, args.strategy)
     elif args.command == "pending":
         cmd_pending()
     elif args.command == "backtest":

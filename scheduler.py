@@ -18,7 +18,7 @@ import alpaca_client
 import config
 import ollama_client
 import notifier
-from strategies import trailing_stop, politician_copy
+from strategies import trailing_stop, politician_copy, REGISTRY
 
 PENDING_FILE = os.path.join(os.path.dirname(__file__), "paper_results", "pending_orders.json")
 
@@ -60,9 +60,11 @@ def run_pending_orders():
     remaining = []
     for o in orders:
         symbol, qty = o["symbol"], o["qty"]
+        strategy_name = o.get("strategy", "trailing_stop")
         try:
-            trailing_stop.enter_position(symbol, qty)
-            log.info(f"[pending] {symbol} x{qty} executed at open")
+            strategy = REGISTRY[strategy_name]
+            strategy.enter_position(symbol, qty, strategy=strategy_name)
+            log.info(f"[pending] {symbol} x{qty} ({strategy_name}) executed at open")
         except Exception as e:
             log.error(f"[pending] {symbol} x{qty} failed: {e}")
             remaining.append(o)
@@ -70,11 +72,15 @@ def run_pending_orders():
         json.dump(remaining, f, indent=2)
 
 
-def run_trailing_stop():
+def run_all_strategies():
     if not is_market_hours():
         return
-    log.info(f"[scheduler] trailing stop check — {datetime.now(ET).strftime('%H:%M:%S ET')}")
-    trailing_stop.check_and_manage()
+    log.info(f"[scheduler] strategy check — {datetime.now(ET).strftime('%H:%M:%S ET')}")
+    for name, strategy in REGISTRY.items():
+        try:
+            strategy.check_and_manage()
+        except Exception as e:
+            log.error(f"[scheduler] {name} check_and_manage failed: {e}")
 
 
 def run_politician_copy():
@@ -149,6 +155,7 @@ def run_catchup():
     if past_935:
         log.info("[scheduler] late start — running politician copy now")
         run_politician_copy()
+        run_all_strategies()
 
 
 def start():
@@ -166,9 +173,9 @@ def start():
         CronTrigger(day_of_week="mon-fri", hour=9, minute=31, timezone=ET),
     )
 
-    # Trailing stop: every 5 min, market hours
+    # All strategies: every 5 min, market hours
     sched.add_job(
-        run_trailing_stop,
+        run_all_strategies,
         CronTrigger(day_of_week="mon-fri", hour="9-15", minute="*/5", timezone=ET),
     )
 

@@ -40,7 +40,7 @@ def save_state(state):
         json.dump(state, f, indent=2)
 
 
-def add_position(symbol, entry_price, qty):
+def add_position(symbol, entry_price, qty, strategy="trailing_stop"):
     """Register a new position to be managed by trailing stop."""
     state = load_state()
     floor = entry_price * (1 - config.TRAILING_STOP_DROP_PCT)
@@ -50,6 +50,7 @@ def add_position(symbol, entry_price, qty):
         "floor": floor,
         "peak": entry_price,
         "entered_at": datetime.now().isoformat(),
+        "strategy": strategy,
     }
     save_state(state)
     print(f"[trailing] {symbol} registered. Entry ${entry_price:.2f}, floor ${floor:.2f}")
@@ -62,6 +63,8 @@ def check_and_manage():
         return
 
     for symbol, data in list(state.items()):
+        if data.get("strategy", "trailing_stop") != "trailing_stop":
+            continue
         price = alpaca_client.get_current_price(symbol)
         if price is None:
             print(f"[trailing] {symbol}: could not fetch price, skipping")
@@ -108,18 +111,18 @@ def check_and_manage():
     save_state(state)
 
 
-def enter_position(symbol, qty):
+def enter_position(symbol, qty, strategy="trailing_stop"):
     """Buy and register for trailing stop management."""
     order = alpaca_client.place_market_order(symbol, qty, "buy")
     print(f"[trailing] {symbol}: buy order placed — {order.id}")
     fill_price = alpaca_client.get_fill_price(order.id)
     print(f"[trailing] {symbol}: filled at ${fill_price:.2f}")
-    add_position(symbol, fill_price, qty)
+    add_position(symbol, fill_price, qty, strategy=strategy)
     notifier.action(
         f"BUY {symbol} — position entered",
         f"Symbol: {symbol}\nQty: {qty}\nFill price: ${fill_price:.2f}\n"
         f"Position value: ${fill_price * qty:,.2f}\n"
         f"Initial floor: ${fill_price * (1 - config.TRAILING_STOP_DROP_PCT):.2f}\n"
-        f"Order ID: {order.id}\nStrategy: trailing stop",
+        f"Order ID: {order.id}\nStrategy: {strategy}",
     )
     return order
