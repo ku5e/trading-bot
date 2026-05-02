@@ -85,6 +85,23 @@ def cmd_pending():
         print(f"{o['symbol']} x{o['qty']} — queued {o['queued_at']}")
 
 
+def cmd_cancel(symbol):
+    symbol = symbol.upper()
+    if not os.path.exists(PENDING_FILE):
+        print("No pending orders.")
+        return
+    with open(PENDING_FILE) as f:
+        orders = json.load(f)
+    before = len(orders)
+    orders = [o for o in orders if o["symbol"] != symbol]
+    if len(orders) == before:
+        print(f"{symbol}: not found in pending orders.")
+        return
+    with open(PENDING_FILE, "w") as f:
+        json.dump(orders, f, indent=2)
+    print(f"{symbol}: removed from pending orders.")
+
+
 def cmd_price(symbol):
     price = alpaca_client.get_current_price(symbol.upper())
     if price is None:
@@ -117,6 +134,8 @@ def main():
             "              python main.py queue --symbol XNDU --qty 100 --strategy trailing_stop\n\n"
             "  pending     Show queued orders not yet executed\n"
             "              python main.py pending\n\n"
+            "  cancel      Remove a symbol from the pending queue\n"
+            "              python main.py cancel --symbol XNDU\n\n"
             "  backtest    Run trailing stop backtest on historical data\n"
             "              python main.py backtest --symbol XNDU --days 365\n"
         ),
@@ -143,6 +162,9 @@ def main():
 
     sub.add_parser("pending", help="Show queued orders  |  python main.py pending")
 
+    cancel_p = sub.add_parser("cancel", help="Cancel a pending order  |  python main.py cancel --symbol XNDU")
+    cancel_p.add_argument("--symbol", required=True)
+
     bt_p = sub.add_parser("backtest", help="Backtest trailing stop  |  python main.py backtest --symbol XNDU --days 365")
     bt_p.add_argument("--symbol", required=True)
     bt_p.add_argument("--days", type=int, default=365)
@@ -163,6 +185,8 @@ def main():
         cmd_queue(args.symbol, args.qty, args.strategy)
     elif args.command == "pending":
         cmd_pending()
+    elif args.command == "cancel":
+        cmd_cancel(args.symbol)
     elif args.command == "backtest":
         cmd_backtest(args.symbol, args.days)
     else:
