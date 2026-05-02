@@ -85,26 +85,46 @@ def cmd_backtest(symbol, days):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Trading bot CLI")
+    parser = argparse.ArgumentParser(
+        description="Trading bot CLI",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Commands:\n"
+            "  status      Show account equity and cash\n"
+            "              python main.py status\n\n"
+            "  positions   Show all open positions with P&L\n"
+            "              python main.py positions\n\n"
+            "  price       Get current price for a symbol\n"
+            "              python main.py price --symbol XNDU\n\n"
+            "  enter       Buy immediately and register for trailing stop\n"
+            "              python main.py enter --symbol XNDU --qty 100\n\n"
+            "  queue       Queue a buy for next market open (9:31 AM ET)\n"
+            "              python main.py queue --symbol XNDU --qty 100\n\n"
+            "  pending     Show queued orders not yet executed\n"
+            "              python main.py pending\n\n"
+            "  backtest    Run trailing stop backtest on historical data\n"
+            "              python main.py backtest --symbol XNDU --days 365\n"
+        ),
+    )
     sub = parser.add_subparsers(dest="command")
 
-    sub.add_parser("status", help="Show account equity and cash")
-    sub.add_parser("positions", help="Show all open positions")
+    sub.add_parser("status", help="Show account equity and cash  |  python main.py status")
+    sub.add_parser("positions", help="Show all open positions  |  python main.py positions")
 
-    price_p = sub.add_parser("price", help="Get current price for a symbol")
+    price_p = sub.add_parser("price", help="Get current price  |  python main.py price --symbol XNDU")
     price_p.add_argument("--symbol", required=True)
 
-    enter_p = sub.add_parser("enter", help="Buy now and register for trailing stop")
+    enter_p = sub.add_parser("enter", help="Buy now + trailing stop  |  python main.py enter --symbol XNDU --qty 100")
     enter_p.add_argument("--symbol", required=True)
     enter_p.add_argument("--qty", type=int, required=True)
 
-    queue_p = sub.add_parser("queue", help="Queue a buy for next market open (9:31 AM ET)")
+    queue_p = sub.add_parser("queue", help="Queue buy for 9:31 AM open  |  python main.py queue --symbol XNDU --qty 100")
     queue_p.add_argument("--symbol", required=True)
     queue_p.add_argument("--qty", type=int, required=True)
 
-    sub.add_parser("pending", help="Show queued orders not yet executed")
+    sub.add_parser("pending", help="Show queued orders  |  python main.py pending")
 
-    bt_p = sub.add_parser("backtest", help="Run trailing stop backtest")
+    bt_p = sub.add_parser("backtest", help="Backtest trailing stop  |  python main.py backtest --symbol XNDU --days 365")
     bt_p.add_argument("--symbol", required=True)
     bt_p.add_argument("--days", type=int, default=365)
 
