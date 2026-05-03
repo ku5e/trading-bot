@@ -64,10 +64,11 @@ def save_tracked(df):
     df.to_csv(TRACKED_FILE, index=False)
 
 
-def check_and_copy():
+def check_and_copy(exit_strategy=None):
     """
     Run on schedule. Pull latest disclosures, enter any purchases
     that are past the delay window and not yet copied.
+    exit_strategy: strategy name to register position for managed exit, or None for manual.
     """
     trades = fetch_trades()
     tracked = load_tracked()
@@ -98,6 +99,17 @@ def check_and_copy():
         try:
             order = alpaca_client.place_market_order(trade["symbol"], qty, "buy")
             print(f"[politician] copied {trade['symbol']} x{qty} @ ~${price:.2f} — order {order.id}")
+
+            if exit_strategy:
+                from strategies import get_strategy
+                strat = get_strategy(exit_strategy)
+                if hasattr(strat, "add_position"):
+                    fill_price = alpaca_client.get_fill_price(order.id)
+                    strat.add_position(trade["symbol"], fill_price, qty, strategy=exit_strategy)
+                    print(f"[politician] {trade['symbol']} registered with {exit_strategy} for exit management")
+                else:
+                    print(f"[politician] {exit_strategy} has no add_position() — exit unmanaged")
+
             new_row = pd.DataFrame([{
                 "symbol": trade["symbol"],
                 "disclosed_date": trade["disclosed_date"],

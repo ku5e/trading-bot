@@ -1,6 +1,7 @@
 NOUS/
 paper_results/
 .env
+CLAUDE.md
 __pycache__/
 *.pyc
 .DS_Store

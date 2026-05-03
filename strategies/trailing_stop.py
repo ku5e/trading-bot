@@ -111,6 +111,62 @@ def check_and_manage():
     save_state(state)
 
 
+def backtest(df):
+    """Simulate trailing stop on historical OHLCV dataframe. Called by backtester."""
+    drop_pct      = config.TRAILING_STOP_DROP_PCT
+    raise_trigger = config.TRAILING_STOP_RAISE_TRIGGER
+    floor_offset  = config.TRAILING_STOP_FLOOR_OFFSET
+
+    entry_price = df["close"].iloc[0]
+    floor       = entry_price * (1 - drop_pct)
+    peak        = entry_price
+    position    = True
+    trades      = []
+    equity      = [1.0]
+
+    for i, row in df.iterrows():
+        if not position:
+            equity.append(equity[-1])
+            continue
+        price = row["close"]
+        if price > peak:
+            peak = price
+            gain_pct = (price - entry_price) / entry_price
+            if gain_pct >= raise_trigger:
+                new_floor = price * (1 - floor_offset)
+                if new_floor > floor:
+                    floor = new_floor
+        if price <= floor:
+            pnl_pct = (price - entry_price) / entry_price
+            trades.append({"exit_price": price, "pnl_pct": pnl_pct, "exit_date": str(i)})
+            position = False
+            equity.append(equity[-1] * (1 + pnl_pct))
+        else:
+            prev = df["close"].iloc[max(0, df.index.get_loc(i) - 1)]
+            equity.append(equity[-1] * (price / prev))
+
+    if position:
+        final = df["close"].iloc[-1]
+        pnl_pct = (final - entry_price) / entry_price
+        trades.append({"exit_price": final, "pnl_pct": pnl_pct, "exit_date": "open"})
+
+    total_return = equity[-1] - 1.0
+    max_dd = min(
+        (v - max(equity[:i + 1])) / max(equity[:i + 1])
+        for i, v in enumerate(equity)
+        if max(equity[:i + 1]) > 0
+    )
+    win_rate = sum(1 for t in trades if t["pnl_pct"] > 0) / len(trades) if trades else 0
+
+    return {
+        "total_return_pct": round(total_return * 100, 2),
+        "max_drawdown_pct": round(max_dd * 100, 2),
+        "win_rate_pct":     round(win_rate * 100, 2),
+        "num_trades":       len(trades),
+        "trades":           trades,
+    }
+
+
 def enter_position(symbol, qty, strategy="trailing_stop"):
     """Buy and register for trailing stop management."""
     order = alpaca_client.place_market_order(symbol, qty, "buy")

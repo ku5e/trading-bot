@@ -254,7 +254,21 @@ Scrapes Capitol Trades for recent purchase disclosures from a target politician 
 - Places a market buy.
 - Logs the symbol to `paper_results/politician_tracked.csv` to prevent duplicate entries.
 
-**Exit:** No automated exit. Positions from this strategy are not managed by `check_and_manage()`. Sell manually via the CLI or Alpaca dashboard.
+**Exit:** Configurable. Set `POLITICIAN_EXIT_STRATEGY` in `config.py` to any registered strategy name to hand off exit management automatically. Default is `None` — manual exit via CLI or Alpaca dashboard.
+
+When `POLITICIAN_EXIT_STRATEGY` is set, after each buy the bot:
+1. Waits for the fill price via `get_fill_price()`
+2. Calls `strategy.add_position()` to register the position in that strategy's state file
+3. The exit strategy's `check_and_manage()` picks it up on the next 5-minute tick
+
+Example — auto-manage politician copy exits with trailing stop:
+
+```python
+# config.py
+POLITICIAN_EXIT_STRATEGY = "trailing_stop"
+```
+
+For a new strategy to support this, implement `add_position(symbol, entry_price, qty, strategy)` in the strategy module. See the commented template in `strategies/example_strategy.py`.
 
 **To follow a different politician:** Change `TARGET_POLITICIAN` in `strategies/politician_copy.py` to any Capitol Trades URL slug (the name as it appears in the URL at capitoltrades.com/politicians/).
 
@@ -276,23 +290,35 @@ These are constants in `config.py`, not `.env` settings. They cannot be overridd
 ## 10. Backtesting
 
 ```bash
-python main.py backtest --symbol TSLA --days 365
+python main.py backtest --symbol TSLA --days 365 --strategy trailing_stop
 ```
 
-Pulls `days` of daily OHLCV data from Alpaca's IEX feed, simulates a single buy-and-hold with trailing stop logic applied at each close, and prints:
+`--strategy` defaults to `trailing_stop` if omitted. Any registered strategy that implements a `backtest(df)` function can be backtested this way.
+
+Pulls `days` of daily OHLCV data from Alpaca's IEX feed, passes the dataframe to `strategy.backtest(df)`, and prints:
 
 - Total return %
 - Max drawdown %
 - Win rate %
 - Number of trades (exits)
 
-**Data feed note:** The backtester uses Alpaca's IEX feed (`feed="iex"`), which is available on free paper accounts. SIP data requires a paid subscription. IEX is reliable for liquid large-caps (S&P 500, Nasdaq 100). For small-cap or low-volume tickers, IEX data can be incomplete or stale — use results for those with skepticism.
+**Which strategies support backtesting?**
+
+| Strategy | Backtestable | Reason |
+|---|---|---|
+| `trailing_stop` | Yes | Deterministic exit logic on OHLCV data |
+| `politician_copy` | No | Entry depends on real-time disclosure events — no historical dataset |
+
+Strategies without a `backtest(df)` function raise `NotImplementedError` with a clear message.
+
+**Adding backtest support to a new strategy:** implement `backtest(df)` in your strategy module. The function receives a pandas DataFrame (daily OHLCV) and must return `{total_return_pct, max_drawdown_pct, win_rate_pct, num_trades, trades}`. See the commented template in `strategies/example_strategy.py`.
+
+**Data feed note:** The backtester uses Alpaca's IEX feed (`feed="iex"`), available on free paper accounts. SIP data requires a paid subscription. IEX is reliable for liquid large-caps (S&P 500, Nasdaq 100). For small-cap or low-volume tickers, IEX data can be incomplete or stale.
 
 **Backtest limitations:**
 - Single entry at the first close. No re-entry after a stop.
 - No slippage or commission modeling.
 - No intraday simulation — only daily close prices.
-- Currently only supports `trailing_stop` logic.
 
 ---
 

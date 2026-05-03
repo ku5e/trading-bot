@@ -87,7 +87,7 @@ def run_politician_copy():
     if not is_market_hours():
         return
     log.info(f"[scheduler] politician copy check — {datetime.now(ET).strftime('%H:%M:%S ET')}")
-    politician_copy.check_and_copy()
+    politician_copy.check_and_copy(exit_strategy=config.POLITICIAN_EXIT_STRATEGY)
 
 
 def run_morning_brief():

@@ -186,3 +186,35 @@ def check_and_manage():
                 print(f"[{STRATEGY_NAME}] {symbol}: sell failed — {e}")
 
     save_state(state)
+
+
+# ── Optional: backtest() ───────────────────────────────────────────────────────
+# Implement this if your exit logic can be simulated on historical OHLCV data.
+# The backtester calls strategy.backtest(df) — if absent, backtest raises NotImplementedError.
+#
+# df: pandas DataFrame with columns [open, high, low, close, volume], one row per trading day.
+# Must return a dict with keys:
+#   total_return_pct, max_drawdown_pct, win_rate_pct, num_trades, trades
+#
+# def backtest(df):
+#     entry_price = df["close"].iloc[0]
+#     # simulate your exit logic bar by bar
+#     raise NotImplementedError("backtest not implemented for this strategy")
+
+
+# ── Optional: add_position() ──────────────────────────────────────────────────
+# Implement this if you want politician_copy (or any other entry mechanism) to
+# register already-filled positions with your strategy for exit management.
+# Called AFTER a buy is placed elsewhere — do NOT place another order here.
+# Enable by setting POLITICIAN_EXIT_STRATEGY = "your_strategy_name" in config.py.
+#
+# def add_position(symbol, entry_price, qty, strategy=STRATEGY_NAME):
+#     state = load_state()
+#     state[symbol] = {
+#         "entry_price": entry_price,
+#         "qty": qty,
+#         "strategy": strategy,
+#         "entered_at": datetime.now().isoformat(),
+#     }
+#     save_state(state)
+#     print(f"[{STRATEGY_NAME}] {symbol} registered. Entry ${entry_price:.2f}")

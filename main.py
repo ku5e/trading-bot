@@ -111,8 +111,8 @@ def cmd_price(symbol):
         print(f"{symbol.upper()}: ${price:.2f}")
 
 
-def cmd_backtest(symbol, days):
-    run_backtest(symbol.upper(), days, "trailing_stop")
+def cmd_backtest(symbol, days, strategy="trailing_stop"):
+    run_backtest(symbol.upper(), days, strategy)
 
 
 def main():
@@ -137,8 +137,8 @@ def main():
             "              python main.py pending\n\n"
             "  cancel      Remove a symbol from the pending queue\n"
             "              python main.py cancel --symbol XNDU\n\n"
-            "  backtest    Run trailing stop backtest on historical data\n"
-            "              python main.py backtest --symbol XNDU --days 365\n"
+            "  backtest    Run strategy backtest on historical data\n"
+            "              python main.py backtest --symbol TSLA --days 365 --strategy trailing_stop\n"
         ),
     )
     sub = parser.add_subparsers(dest="command")
@@ -166,9 +166,10 @@ def main():
     cancel_p = sub.add_parser("cancel", help="Cancel a pending order  |  python main.py cancel --symbol XNDU")
     cancel_p.add_argument("--symbol", required=True)
 
-    bt_p = sub.add_parser("backtest", help="Backtest trailing stop  |  python main.py backtest --symbol XNDU --days 365")
+    bt_p = sub.add_parser("backtest", help="Backtest a strategy  |  python main.py backtest --symbol TSLA --days 365 --strategy trailing_stop")
     bt_p.add_argument("--symbol", required=True)
     bt_p.add_argument("--days", type=int, default=365)
+    bt_p.add_argument("--strategy", default="trailing_stop")
 
     args = parser.parse_args()
 
@@ -189,7 +190,7 @@ def main():
     elif args.command == "cancel":
         cmd_cancel(args.symbol)
     elif args.command == "backtest":
-        cmd_backtest(args.symbol, args.days)
+        cmd_backtest(args.symbol, args.days, args.strategy)
     else:
         parser.print_help()
 

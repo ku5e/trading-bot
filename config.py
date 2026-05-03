@@ -28,6 +28,7 @@ TRAILING_STOP_FLOOR_OFFSET = 0.05   # new floor = current price - 5%
 CAPITOL_TRADES_URL = "https://capitoltrades.com/trades"
 COPY_TRADE_DELAY_DAYS = 0        # buy immediately on disclosure
 COPY_MAX_POSITION_USD = 5000     # max per copy trade position
+POLITICIAN_EXIT_STRATEGY = None  # set to "trailing_stop" (or any strategy) to auto-manage exits; None = manual
 
 # Email
 EMAIL_SMTP = os.getenv("EMAIL_SMTP", "")
