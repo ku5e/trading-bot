@@ -102,6 +102,11 @@ Default: paper trading (`https://paper-api.alpaca.markets`). Change `ALPACA_BASE
 - Alpaca paper trading account (free)
 - Optional: Ollama (end-of-day summary), SMTP credentials (email alerts)
 
+## Support
+
+If this project is useful to you, consider supporting the work:
+[github.com/sponsors/ku5e](https://github.com/sponsors/ku5e)
+
 ## License
 
 MIT
