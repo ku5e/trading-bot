@@ -84,6 +84,24 @@ def get_fill_price(order_id, timeout=30):
     raise RuntimeError(f"Order {order_id} not filled within {timeout}s")
 
 
+def close_position(symbol):
+    """Market sell the entire open position. Bypasses buy-side risk guards."""
+    api = get_client()
+    return api.close_position(symbol)
+
+
+def sell_shares(symbol, qty):
+    """Market sell a specific qty. Bypasses buy-side risk guards."""
+    api = get_client()
+    return api.submit_order(
+        symbol=symbol,
+        qty=qty,
+        side="sell",
+        type="market",
+        time_in_force="day",
+    )
+
+
 def get_historical_bars(symbol, days=365, timeframe=TimeFrame.Day):
     """Pull historical OHLCV for backtesting."""
     api = get_client()

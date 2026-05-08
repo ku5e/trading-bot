@@ -69,6 +69,7 @@ def draw_menu():
         ("[ 7 ]", "PENDING",    "Show queued orders"),
         ("[ 8 ]", "CANCEL",     "Remove symbol from queue"),
         ("[ 9 ]", "BACKTEST",   "Run backtest on symbol"),
+        ("[ S ]", "SELL",       "Exit a position on demand"),
         ("[ 0 ]", "EXIT",       ""),
     ]
 
@@ -186,6 +187,19 @@ def run():
             if symbol:
                 console.print()
                 bot.cmd_cancel(symbol)
+            pause()
+
+        elif choice.upper() == "S":
+            section("SELL — EXIT POSITION")
+            symbol = ask("SYMBOL")
+            qty_raw = ask("QTY (blank = full position)")
+            qty = int(qty_raw) if qty_raw and qty_raw.isdigit() else None
+            if symbol:
+                console.print()
+                try:
+                    bot.cmd_exit(symbol, qty)
+                except Exception as e:
+                    console.print(f"[err]  ERROR: {e}[/err]")
             pause()
 
         elif choice == "9":

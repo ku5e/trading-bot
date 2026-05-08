@@ -56,6 +56,14 @@ def add_position(symbol, entry_price, qty, strategy="trailing_stop"):
     print(f"[trailing] {symbol} registered. Entry ${entry_price:.2f}, floor ${floor:.2f}")
 
 
+def remove_position(symbol):
+    """Remove symbol from state tracking. Called on manual exit."""
+    state = load_state()
+    if symbol in state:
+        del state[symbol]
+        save_state(state)
+
+
 def check_and_manage():
     """Run on schedule. Check all tracked positions, update floors, fire stops."""
     state = load_state()

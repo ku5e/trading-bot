@@ -111,6 +111,30 @@ def cmd_price(symbol):
         print(f"{symbol.upper()}: ${price:.2f}")
 
 
+def cmd_exit(symbol, qty=None):
+    symbol = symbol.upper()
+    pos = alpaca_client.get_position(symbol)
+    if pos is None:
+        print(f"{symbol}: no open position.")
+        return
+    sell_qty = qty if qty else int(float(pos.qty))
+    price = alpaca_client.get_current_price(symbol)
+    entry = float(pos.avg_entry_price)
+    if qty:
+        order = alpaca_client.sell_shares(symbol, sell_qty)
+    else:
+        order = alpaca_client.close_position(symbol)
+    trailing_stop.remove_position(symbol)
+    pnl = (price - entry) * sell_qty
+    notifier.action(
+        f"SELL {symbol} — manual exit",
+        f"Symbol: {symbol}\nQty: {sell_qty}\nEntry: ${entry:.2f}\n"
+        f"Current: ${price:.2f}\nEst. P&L: ${pnl:+.2f}\n"
+        f"Order ID: {order.id}\nStrategy: manual exit",
+    )
+    print(f"Sell order placed: {order.id} | {sell_qty} shares @ ~${price:.2f} | Est. P&L ${pnl:+.2f}")
+
+
 def cmd_backtest(symbol, days, strategy="trailing_stop"):
     run_backtest(symbol.upper(), days, strategy)
 
@@ -137,6 +161,9 @@ def main():
             "              python main.py pending\n\n"
             "  cancel      Remove a symbol from the pending queue\n"
             "              python main.py cancel --symbol XNDU\n\n"
+            "  exit        Sell a position on demand (full or partial)\n"
+            "              python main.py exit --symbol XNDU\n"
+            "              python main.py exit --symbol XNDU --qty 50\n\n"
             "  backtest    Run strategy backtest on historical data\n"
             "              python main.py backtest --symbol TSLA --days 365 --strategy trailing_stop\n"
         ),
@@ -166,6 +193,10 @@ def main():
     cancel_p = sub.add_parser("cancel", help="Cancel a pending order  |  python main.py cancel --symbol XNDU")
     cancel_p.add_argument("--symbol", required=True)
 
+    exit_p = sub.add_parser("exit", help="Sell position on demand  |  python main.py exit --symbol XNDU")
+    exit_p.add_argument("--symbol", required=True)
+    exit_p.add_argument("--qty", type=int, default=None)
+
     bt_p = sub.add_parser("backtest", help="Backtest a strategy  |  python main.py backtest --symbol TSLA --days 365 --strategy trailing_stop")
     bt_p.add_argument("--symbol", required=True)
     bt_p.add_argument("--days", type=int, default=365)
@@ -189,6 +220,8 @@ def main():
         cmd_pending()
     elif args.command == "cancel":
         cmd_cancel(args.symbol)
+    elif args.command == "exit":
+        cmd_exit(args.symbol, args.qty)
     elif args.command == "backtest":
         cmd_backtest(args.symbol, args.days, args.strategy)
     else:
